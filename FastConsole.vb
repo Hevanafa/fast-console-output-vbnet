@@ -59,40 +59,119 @@ Public Class FastConsole
         Public Bottom As Short
     End Structure
 
+    Property CursorLeft As Integer
+        Get
+            Return Console.CursorLeft
+        End Get
+        Set
+            Console.CursorLeft = Value
+        End Set
+    End Property
+
+    Property CursorTop As Integer
+        Get
+            Return Console.CursorTop
+        End Get
+        Set
+            Console.CursorTop = Value
+        End Set
+    End Property
+
+    Property Foreground As Short
+        Get
+            Return Console.ForegroundColor
+        End Get
+        Set
+            Console.ForegroundColor = Value
+        End Set
+    End Property
+
+    Property Background As Short
+        Get
+            Return Console.BackgroundColor
+        End Get
+        Set
+            Console.BackgroundColor = Value
+        End Set
+    End Property
+
+    ' Candidate output
+    'Dim sfh As SafeFileHandle = getstdhandle
+
+    Dim fh As SafeFileHandle = CreateFile(
+        "CONOUT$",
+        &H40000000,
+        2,
+        IntPtr.Zero,
+        FileMode.Open,
+        0,
+        IntPtr.Zero)
+
+    ReadOnly BufferWidth = 80
+    ReadOnly BufferHeight = 25
+
+    Dim char_info_buffer(BufferWidth * BufferHeight) As CharInfo
+    Dim dest_rect As New SmallRect With {
+        .Left = 0,
+        .Top = 0,
+        .Right = BufferWidth,
+        .Bottom = BufferHeight
+    }
+
+    Sub Cls()
+        CursorLeft = 0
+        CursorTop = 0
+
+        For a = 0 To UBound(char_info_buffer)
+            char_info_buffer(a).Attributes = Background * 16 + Foreground
+            char_info_buffer(a).Char.AsciiChar = 0
+        Next
+    End Sub
+
+    Sub Print(text$)
+        For Each c In text
+            Dim idx = CursorTop * BufferWidth + CursorLeft
+
+            char_info_buffer(idx).Attributes = Background * 16 + Foreground
+            char_info_buffer(idx).Char.AsciiChar = AscW(c)
+
+            CursorLeft += 1
+
+            If CursorLeft >= BufferWidth Then
+                CursorLeft = 0
+                CursorTop += 1
+            End If
+        Next
+    End Sub
+
+    Function Flush() As Boolean
+        Flush = WriteConsoleOutputW(
+            fh,
+            char_info_buffer,
+            New Coord() With {.X = BufferWidth, .Y = BufferHeight},
+            New Coord() With {.X = 0, .Y = 0},
+            dest_rect)
+    End Function
+
     Public Sub New()
-        Dim h As SafeFileHandle = CreateFile(
-            "CONOUT$",
-            &H40000000,
-            2,
-            IntPtr.Zero,
-            FileMode.Open,
-            0,
-            IntPtr.Zero)
 
-        If h.IsInvalid Then Exit Sub
 
-        Dim buf(80 * 25) As CharInfo
-        Dim rect As New SmallRect With {
-            .Left = 0,
-            .Top = 0,
-            .Right = 80,
-            .Bottom = 25
-        }
+        If fh.IsInvalid Then Exit Sub
 
         For ch As Byte = 65 To 65 + 25
             For attribute As Short = 0 To 15
-                For i = 0 To UBound(buf)
-                    buf(i).Attributes = attribute
-                    buf(i).Char.AsciiChar = ch
-                Next
+                Cls()
 
+                Background = attribute
 
-                Dim b As Boolean = WriteConsoleOutputW(
-                    h,
-                    buf,
-                    New Coord() With {.X = 80, .Y = 25},
-                    New Coord() With {.X = 0, .Y = 0},
-                    rect)
+                Print("Hello " + Chr(ch))
+
+                'For i = 0 To UBound(char_info_buffer)
+                '    char_info_buffer(i).Attributes = attribute
+                '    char_info_buffer(i).Char.AsciiChar = ch
+                'Next
+
+                Flush()
             Next
         Next
 
