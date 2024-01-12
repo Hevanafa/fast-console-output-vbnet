@@ -83,6 +83,7 @@ Public Class FastConsole
         End Get
         Set
             Console.ForegroundColor = Value
+            ComputedAttributes = Background * 16 + Foreground
         End Set
     End Property
 
@@ -92,8 +93,11 @@ Public Class FastConsole
         End Get
         Set
             Console.BackgroundColor = Value
+            ComputedAttributes = Background * 16 + Foreground
         End Set
     End Property
+
+    Dim ComputedAttributes As Short
 
     ' Candidate output
     'Dim sfh As SafeFileHandle = getstdhandle
@@ -123,8 +127,10 @@ Public Class FastConsole
         CursorTop = 0
 
         For a = 0 To UBound(char_info_buffer)
-            char_info_buffer(a).Attributes = Background * 16 + Foreground
-            char_info_buffer(a).Char.AsciiChar = 0
+            With char_info_buffer(a)
+                .Attributes = ComputedAttributes
+                .Char.AsciiChar = 0
+            End With
         Next
     End Sub
 
@@ -132,8 +138,10 @@ Public Class FastConsole
         For Each c In text
             Dim idx = CursorTop * BufferWidth + CursorLeft
 
-            char_info_buffer(idx).Attributes = Background * 16 + Foreground
-            char_info_buffer(idx).Char.AsciiChar = AscW(c)
+            With char_info_buffer(idx)
+                .Attributes = ComputedAttributes
+                .Char.AsciiChar = AscW(c)
+            End With
 
             CursorLeft += 1
 
@@ -154,6 +162,9 @@ Public Class FastConsole
     End Function
 
     Public Sub New()
+        ' initialise ComputedAttributes
+        Foreground = Console.ForegroundColor
+        Background = Console.BackgroundColor
 
 
         If fh.IsInvalid Then Exit Sub
